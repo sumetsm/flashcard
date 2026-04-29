@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ReaderIcon, LightningBoltIcon, BarChartIcon, RocketIcon, StarFilledIcon, ClockIcon } from '@radix-ui/react-icons'
+import { ReaderIcon, BarChartIcon, StarFilledIcon, ClockIcon } from '@radix-ui/react-icons'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
@@ -63,35 +63,20 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* Quick actions */}
-      <div className="grid sm:grid-cols-2 gap-3">
-        <Link href="/study">
-          <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
-            <CardContent className="flex items-center gap-4 p-5">
-              <div className="p-3 rounded-xl bg-primary/10">
-                <ReaderIcon className="text-primary" width={24} height={24} />
-              </div>
-              <div>
-                <p className="font-semibold">เรียนด้วย Flashcard</p>
-                <p className="text-sm text-muted-foreground">{stats.new.toLocaleString()} คำใหม่รอคุณอยู่</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/quiz">
-          <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
-            <CardContent className="flex items-center gap-4 p-5">
-              <div className="p-3 rounded-xl bg-purple-500/10">
-                <LightningBoltIcon className="text-purple-500" width={24} height={24} />
-              </div>
-              <div>
-                <p className="font-semibold">ทำ Quiz</p>
-                <p className="text-sm text-muted-foreground">ทดสอบด้วย 4 ตัวเลือก</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
+      {/* Quick action */}
+      <Link href="/study">
+        <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="p-3 rounded-xl bg-primary/10">
+              <ReaderIcon className="text-primary" width={24} height={24} />
+            </div>
+            <div>
+              <p className="font-semibold">เรียนด้วย Flashcard</p>
+              <p className="text-sm text-muted-foreground">{stats.new.toLocaleString()} คำใหม่รอคุณอยู่</p>
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
 
       {/* Summary stats */}
       <div className="grid grid-cols-3 gap-3">

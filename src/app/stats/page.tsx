@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { useVocab } from '@/hooks/useVocab'
 import { useProgressStore } from '@/store/progressStore'
 import { CEFRLevel } from '@/features/vocabulary/types'
+import { ROUND_LABELS, SRSRound } from '@/features/srs/lib/sm2'
 import { ExclamationTriangleIcon, ChevronDownIcon, ChevronUpIcon } from '@radix-ui/react-icons'
 import { cn } from '@/lib/utils'
 
@@ -27,6 +28,21 @@ const STATUS_CONFIG = [
   { key: 'mastered' as const, label: 'จำได้แล้ว', color: 'bg-green-500' },
 ]
 
+const THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+
+function formatDate(iso: string) {
+  const d = new Date(iso + 'T00:00:00')
+  const today = new Date().toISOString().split('T')[0]
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
+  if (iso === today) return 'วันนี้'
+  if (iso === tomorrow) return 'พรุ่งนี้'
+  return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`
+}
+
+function isOverdue(iso: string) {
+  return iso < new Date().toISOString().split('T')[0]
+}
+
 export default function StatsPage() {
   const { words, loading } = useVocab()
   const getStats = useProgressStore((s) => s.getStats)
@@ -34,15 +50,34 @@ export default function StatsPage() {
   const progress = useProgressStore((s) => s.progress)
 
   const [showMastered, setShowMastered] = useState(false)
-  const [cefrFilter, setCefrFilter] = useState<CEFRLevel | 'all'>('all')
+  const [showLearning, setShowLearning] = useState(false)
+  const [masteredFilter, setMasteredFilter] = useState<CEFRLevel | 'all'>('all')
+  const [learningFilter, setLearningFilter] = useState<CEFRLevel | 'all'>('all')
 
-  const masteredWords = useMemo(() => {
-    return words.filter((w) => progress[w.vocab]?.status === 'mastered')
+  const masteredWords = useMemo(
+    () => words.filter((w) => progress[w.vocab]?.status === 'mastered'),
+    [words, progress]
+  )
+
+  const filteredMastered = useMemo(
+    () => masteredFilter === 'all' ? masteredWords : masteredWords.filter((w) => w.cefr === masteredFilter),
+    [masteredWords, masteredFilter]
+  )
+
+  const learningWords = useMemo(() => {
+    return words
+      .filter((w) => progress[w.vocab]?.status === 'learning')
+      .sort((a, b) => {
+        const da = progress[a.vocab]!.nextReviewDate
+        const db = progress[b.vocab]!.nextReviewDate
+        return da.localeCompare(db)
+      })
   }, [words, progress])
 
-  const filteredMastered = useMemo(() => {
-    return cefrFilter === 'all' ? masteredWords : masteredWords.filter((w) => w.cefr === cefrFilter)
-  }, [masteredWords, cefrFilter])
+  const filteredLearning = useMemo(
+    () => learningFilter === 'all' ? learningWords : learningWords.filter((w) => w.cefr === learningFilter),
+    [learningWords, learningFilter]
+  )
 
   if (loading) {
     return <div className="flex items-center justify-center h-64 text-muted-foreground">กำลังโหลด...</div>
@@ -122,6 +157,95 @@ export default function StatsPage() {
         </CardContent>
       </Card>
 
+      {/* Learning word list — due dates */}
+      <Card>
+        <CardHeader className="pb-2">
+          <button
+            className="flex items-center justify-between w-full text-left"
+            onClick={() => setShowLearning((s) => !s)}
+          >
+            <CardTitle className="text-base">
+              คำที่ยังจำไม่ได้
+              <span className="ml-2 text-sm font-normal text-muted-foreground">({learningWords.length} คำ)</span>
+            </CardTitle>
+            {showLearning
+              ? <ChevronUpIcon width={18} height={18} className="text-muted-foreground flex-shrink-0" />
+              : <ChevronDownIcon width={18} height={18} className="text-muted-foreground flex-shrink-0" />
+            }
+          </button>
+        </CardHeader>
+
+        {showLearning && (
+          <CardContent className="pt-0 space-y-4">
+            {learningWords.length === 0 ? (
+              <p className="text-muted-foreground text-sm">ไม่มีคำในระบบทบทวน</p>
+            ) : (
+              <>
+                {/* CEFR filter */}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setLearningFilter('all')}
+                    className={cn(
+                      'px-3 py-1 text-sm rounded-full border font-medium transition-colors',
+                      learningFilter === 'all'
+                        ? 'bg-foreground text-background border-foreground'
+                        : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
+                    )}
+                  >
+                    ทั้งหมด ({learningWords.length})
+                  </button>
+                  {ALL_LEVELS.filter((l) => learningWords.some((w) => w.cefr === l)).map((level) => (
+                    <button
+                      key={level}
+                      onClick={() => setLearningFilter(level)}
+                      className={cn(
+                        'px-3 py-1 text-sm rounded-full border font-medium transition-colors',
+                        learningFilter === level
+                          ? `${CEFR_COLORS[level]} text-white border-transparent`
+                          : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
+                      )}
+                    >
+                      {level} ({learningWords.filter((w) => w.cefr === level).length})
+                    </button>
+                  ))}
+                </div>
+
+                {/* Word rows sorted by nextReviewDate */}
+                <div className="divide-y">
+                  {filteredLearning.map((w) => {
+                    const card = progress[w.vocab]!
+                    const due = card.nextReviewDate
+                    const overdue = isOverdue(due)
+                    return (
+                      <div key={w.vocab} className="flex items-center justify-between py-2.5 gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Badge className={`text-white border-0 text-[10px] px-1.5 flex-shrink-0 ${CEFR_COLORS[w.cefr]}`}>
+                            {w.cefr}
+                          </Badge>
+                          <span className="font-medium">{w.vocab}</span>
+                          <span className="text-muted-foreground text-sm truncate hidden sm:inline">— {w.meaningTH}</span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0 text-right">
+                          <Badge variant="outline" className="text-[10px] hidden sm:flex">
+                            {ROUND_LABELS[card.round as SRSRound]}
+                          </Badge>
+                          <span className={cn(
+                            'text-sm font-medium tabular-nums',
+                            overdue ? 'text-red-500' : due === new Date().toISOString().split('T')[0] ? 'text-primary' : 'text-muted-foreground'
+                          )}>
+                            {overdue ? '⚠ ' : ''}{formatDate(due)}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+          </CardContent>
+        )}
+      </Card>
+
       {/* Mastered word list */}
       <Card>
         <CardHeader className="pb-2">
@@ -146,39 +270,33 @@ export default function StatsPage() {
               <p className="text-muted-foreground text-sm">ยังไม่มีคำที่จำได้ — ไปเรียนกันเลย!</p>
             ) : (
               <>
-                {/* CEFR filter chips */}
                 <div className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => setCefrFilter('all')}
+                    onClick={() => setMasteredFilter('all')}
                     className={cn(
                       'px-3 py-1 text-sm rounded-full border font-medium transition-colors',
-                      cefrFilter === 'all'
+                      masteredFilter === 'all'
                         ? 'bg-foreground text-background border-foreground'
                         : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
                     )}
                   >
                     ทั้งหมด ({masteredWords.length})
                   </button>
-                  {ALL_LEVELS.filter((l) => masteredWords.some((w) => w.cefr === l)).map((level) => {
-                    const count = masteredWords.filter((w) => w.cefr === level).length
-                    return (
-                      <button
-                        key={level}
-                        onClick={() => setCefrFilter(level)}
-                        className={cn(
-                          'px-3 py-1 text-sm rounded-full border font-medium transition-colors',
-                          cefrFilter === level
-                            ? `${CEFR_COLORS[level]} text-white border-transparent`
-                            : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
-                        )}
-                      >
-                        {level} ({count})
-                      </button>
-                    )
-                  })}
+                  {ALL_LEVELS.filter((l) => masteredWords.some((w) => w.cefr === l)).map((level) => (
+                    <button
+                      key={level}
+                      onClick={() => setMasteredFilter(level)}
+                      className={cn(
+                        'px-3 py-1 text-sm rounded-full border font-medium transition-colors',
+                        masteredFilter === level
+                          ? `${CEFR_COLORS[level]} text-white border-transparent`
+                          : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
+                      )}
+                    >
+                      {level} ({masteredWords.filter((w) => w.cefr === level).length})
+                    </button>
+                  ))}
                 </div>
-
-                {/* Word grid */}
                 <div className="flex flex-wrap gap-2">
                   {filteredMastered.map((w) => (
                     <div

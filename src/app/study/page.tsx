@@ -41,10 +41,6 @@ export default function StudyPage() {
     next()
   }
 
-  const restart = () => {
-    setSessionKey((k) => k + 1)
-  }
-
   if (loading) {
     return <div className="flex items-center justify-center h-64 text-muted-foreground">กำลังโหลด...</div>
   }
@@ -60,9 +56,6 @@ export default function StudyPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Flashcard</h1>
-        <Button variant="ghost" size="sm" onClick={restart}>
-          <ReloadIcon width={14} height={14} className="mr-1" /> เริ่มใหม่
-        </Button>
       </div>
 
       {/* Mode tabs */}

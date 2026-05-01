@@ -129,7 +129,7 @@ export default function StudyPage() {
             </div>
           </div>
 
-          {current && <FlashCard word={current} flipped={flipped} onClick={flip} />}
+          {current && <FlashCard key={index} word={current} flipped={flipped} onClick={flip} />}
 
           {!flipped ? (
             <div className="flex justify-between">

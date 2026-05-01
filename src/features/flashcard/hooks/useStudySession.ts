@@ -30,13 +30,13 @@ export function useStudySession(
   const current = orderedDeck[index] ?? null
 
   const next = useCallback(() => {
+    setIndex((i) => Math.min(i + 1, orderedDeck.length - 1))
     setFlipped(false)
-    setTimeout(() => setIndex((i) => Math.min(i + 1, orderedDeck.length - 1)), 150)
   }, [orderedDeck.length])
 
   const prev = useCallback(() => {
+    setIndex((i) => Math.max(i - 1, 0))
     setFlipped(false)
-    setTimeout(() => setIndex((i) => Math.max(i - 1, 0)), 150)
   }, [])
 
   const flip = useCallback(() => setFlipped((f) => !f), [])
